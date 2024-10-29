@@ -1,6 +1,7 @@
 # This contains function for getting Admin Audit Log
 
-function Get-AdminAuditLog {
+function Get-AdminAuditLog
+{
 <#
     .SYNOPSIS
     Search the contents of the administrator audit log.
@@ -27,51 +28,57 @@ function Get-AdminAuditLog {
 	Get-AdminAuditLog -StartDate 1/4/2023 -EndDate 5/4/2023
 	Collects the admin audit log between 1/4/2023 and 5/4/2023
 #>
-    [CmdletBinding()]
+	[CmdletBinding()]
 	param (
 		[string]$StartDate,
 		[string]$EndDate,
 		[string]$outputDir = "Output\AdminAuditLog"
 	)
-
-    write-logFile -Message "[INFO] Running Get-AdminAuditLog" -Color "Green"
-
-	$date = [datetime]::Now.ToString('yyyyMMddHHmmss') 
-    $outputFile = "$($date)-AdminAuditLog.csv"
-
-
-	if (!(test-path $OutputDir)) {
+	
+	write-logFile -Message "[INFO] Running Get-AdminAuditLog" -Color "Green"
+	
+	$date = [datetime]::Now.ToString('yyyyMMddHHmmss')
+	$outputFile = "$($date)-AdminAuditLog.csv"
+	
+	
+	if (!(test-path $OutputDir))
+	{
 		New-Item -ItemType Directory -Force -Name $outputDir | Out-Null
 		write-LogFile -Message "[INFO] Creating the following directory: $outputDir"
 	}
 	
-	else {
-		if (Test-Path -Path $OutputDir) {
+	else
+	{
+		if (Test-Path -Path $OutputDir)
+		{
 			write-LogFile -Message "[INFO] Custom directory set to: $OutputDir"
 		}
-	
-		else {
+		
+		else
+		{
 			write-Error "[Error] Custom directory invalid: $OutputDir exiting script" -ErrorAction Stop
 			write-LogFile -Message "[Error] Custom directory invalid: $OutputDir exiting script"
 		}
 	}
-
+	
 	$outputDirectory = Join-Path $OutputDir $outputFile
-
+	
 	StartDate
 	EndDate
-
-    Write-LogFile -Message "[INFO] Extracting all available Admin Audit Logs between $($script:StartDate.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($script:EndDate.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK"))" -Color "Green"
-
-	try {
+	
+	Write-LogFile -Message "[INFO] Extracting all available Admin Audit Logs between $($script:StartDate.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($script:EndDate.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK"))" -Color "Green"
+	
+	try
+	{
 		$results = Search-AdminAuditLog -ResultSize 250000 -StartDate $script:startDate -EndDate $script:EndDate
 		$results | Export-Csv $outputDirectory -NoTypeInformation -Append -Encoding UTF8
 	}
-	catch {
+	catch
+	{
 		write-logFile -Message "[INFO] Ensure you are connected to M365 by running the Connect-M365 command before executing this script" -Color "Yellow"
 		Write-logFile -Message "[ERROR] An error occurred: $($_.Exception.Message)" -Color "Red"
 		throw
-	}   
-
-    write-logFile -Message "[INFO] Output is written to: $outputDirectory" -Color "Green"
+	}
+	
+	write-logFile -Message "[INFO] Output is written to: $outputDirectory" -Color "Green"
 }

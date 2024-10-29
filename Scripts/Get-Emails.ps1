@@ -1,4 +1,5 @@
-Function Get-Email {
+Function Get-Email
+{
 <#
     .SYNOPSIS
     Get a specific email.
@@ -39,117 +40,140 @@ Function Get-Email {
 	Get-Email -userIds fortunahodan@bonacu.onmicrosoft.com -internetMessageId "<d6f15b97-e3e3-4871-adb2-e8d999d51f34@az.westeurope.microsoft.com>" -OutputDir C:\Windows\Temp
 	Retrieves an email and saves it to C:\Windows\Temp folder.
 #>
-    [CmdletBinding()]
-	param(
-		[Parameter(Mandatory=$true)]$userIds,
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		$userIds,
 		[string]$internetMessageId,
-        [string]$Output = "eml",
+		[string]$Output = "eml",
 		[string]$outputDir = "Output\EmailExport",
-        [switch]$attachment,
-        [string]$inputFile
-	) 
-
-    $requiredScopes = @("Mail.Readwrite")
-    $graphAuth = Get-GraphAuthType -RequiredScopes $RequiredScopes
-
-    Write-logFile -Message "[INFO] Running Get-Email" -Color "Green"
-
-    if (!(Test-Path -Path $outputDir)) {
-        Write-LogFile -Message "[INFO] Creating the following directory: $outputDir"
-        New-Item -ItemType Directory -Path $outputDir -Force > $null
-    } else {
-        Write-LogFile -Message "[INFO] Directory exists: $outputDir"
-    }
-
-    if ($inputFile) {
-        try {
-            $internetMessageIds = Get-Content $inputFile
-        }
-        catch {
-            Write-Error "[ERROR] Failed to read the input file. Ensure it is a text file with the message IDs on new lines: $_"
-            return
-        }
-    
-        $notCollected = @()
-        foreach ($id in $internetMessageIds) {
-            $id = $id.Trim()
-            write-host "[INFO] Identified: $id"
-           
-            try {
-                $getMessage = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/users/$userIds/messages?filter=internetMessageId eq '$id'"
-                $message = $getMessage.value[0]
-                $ReceivedDateTime = [datetime]::Parse($message.receivedDateTime).ToString("yyyyMMdd_HHmmss")
-                $messageId = $message.Id
-                $subject = $message.Subject -replace '[\\/:*?"<>|]', '_'
-        
-                if ($output -eq "txt") {
-                    $filePath = "$outputDir\$ReceivedDateTime-$subject.txt"
-                }
-                
-                else {
-                    $filePath = "$outputDir\$ReceivedDateTime-$subject.eml"
-                }
-
-                $contentUri = "https://graph.microsoft.com/v1.0/users/$userIds/messages/" + $messageId + "/`$value"
-                Invoke-MgGraphRequest -Method GET $contentUri -OutputFilePath $filePath 
-                Write-logFile -Message "[INFO] Output written to $filePath" -Color "Green"
-
-                if ($attachment.IsPresent){
-                    Get-Attachment -Userid $Userids -internetMessageId $id
-                }
-           }
-           catch {
-               Write-Warning "[WARNING] Failed to collect message with ID '$id': $_"
-               $notCollected += $id 
-           }
-        }
-        if ($notCollected.Count -gt 0) {
-            Write-logFile -Message "[INFO] The following messages have not been collected:" -Color "Yellow"
-            foreach ($notCollectedID in $notCollected) {
-                Write-logFile -Message "  $notCollectedID" -Color "Yellow"
-            }
-        }
-    }
-
-    else {
-        if (-not $internetMessageId) {
-            Write-Error "[ERROR] Either internetMessageId or inputFile must be provided."
-            return
-        }
-    
-        try {
-            $getMessage = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/users/$userIds/messages?filter=internetMessageId eq '$internetMessageId'"
-            $message = $getMessage.value[0]
-            $ReceivedDateTime = [datetime]::Parse($message.receivedDateTime).ToString("yyyyMMdd_HHmmss")
-            $messageId = $message.id
-            $subject = $message.Subject -replace '[\\/:*?"<>|]', '_'
-
-            if ($output -eq "txt") {
-                $filePath = "$outputDir\$ReceivedDateTime-$subject.txt"
-            }
-            
-            else {
-                $filePath = "$outputDir\$ReceivedDateTime-$subject.eml"
-            }
-
-            $contentUri = "https://graph.microsoft.com/v1.0/users/$userIds/messages/" + $messageId + "/`$value"
-            Invoke-MgGraphRequest -Method GET $contentUri -OutputFilePath $filePath
-            Write-logFile -Message "[INFO] Output written to $filePath" -Color "Green"
-
-            if ($attachment.IsPresent){
-                Get-Attachment -Userid $Userids -internetMessageId $internetMessageId
-            }
-        }
-        catch {
-            Write-logFile -Message "[WARNING] The 'Mail.Readwrite' is an application-level permission, requiring an application-based connection through the 'Connect-MgGraph' command for its use." -Color "Red"
-            Write-logFile -Message "[ERROR] An error occurred: $($_.Exception.Message)"
-            return
-        }  
-    }   
+		[switch]$attachment,
+		[string]$inputFile
+	)
+	
+	$requiredScopes = @("Mail.Readwrite")
+	$graphAuth = Get-GraphAuthType -RequiredScopes $RequiredScopes
+	
+	Write-logFile -Message "[INFO] Running Get-Email" -Color "Green"
+	
+	if (!(Test-Path -Path $outputDir))
+	{
+		Write-LogFile -Message "[INFO] Creating the following directory: $outputDir"
+		New-Item -ItemType Directory -Path $outputDir -Force > $null
+	}
+	else
+	{
+		Write-LogFile -Message "[INFO] Directory exists: $outputDir"
+	}
+	
+	if ($inputFile)
+	{
+		try
+		{
+			$internetMessageIds = Get-Content $inputFile
+		}
+		catch
+		{
+			Write-Error "[ERROR] Failed to read the input file. Ensure it is a text file with the message IDs on new lines: $_"
+			return
+		}
+		
+		$notCollected = @()
+		foreach ($id in $internetMessageIds)
+		{
+			$id = $id.Trim()
+			write-host "[INFO] Identified: $id"
+			
+			try
+			{
+				$getMessage = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/users/$userIds/messages?filter=internetMessageId eq '$id'"
+				$message = $getMessage.value[0]
+				$ReceivedDateTime = [datetime]::Parse($message.receivedDateTime).ToString("yyyyMMdd_HHmmss")
+				$messageId = $message.Id
+				$subject = $message.Subject -replace '[\\/:*?"<>|]', '_'
+				
+				if ($output -eq "txt")
+				{
+					$filePath = "$outputDir\$ReceivedDateTime-$subject.txt"
+				}
+				
+				else
+				{
+					$filePath = "$outputDir\$ReceivedDateTime-$subject.eml"
+				}
+				
+				$contentUri = "https://graph.microsoft.com/v1.0/users/$userIds/messages/" + $messageId + "/`$value"
+				Invoke-MgGraphRequest -Method GET $contentUri -OutputFilePath $filePath
+				Write-logFile -Message "[INFO] Output written to $filePath" -Color "Green"
+				
+				if ($attachment.IsPresent)
+				{
+					Get-Attachment -userIds $Userids -internetMessageId $id
+				}
+			}
+			catch
+			{
+				Write-Warning "[WARNING] Failed to collect message with ID '$id': $_"
+				$notCollected += $id
+			}
+		}
+		if ($notCollected.Count -gt 0)
+		{
+			Write-logFile -Message "[INFO] The following messages have not been collected:" -Color "Yellow"
+			foreach ($notCollectedID in $notCollected)
+			{
+				Write-logFile -Message "  $notCollectedID" -Color "Yellow"
+			}
+		}
+	}
+	
+	else
+	{
+		if (-not $internetMessageId)
+		{
+			Write-Error "[ERROR] Either internetMessageId or inputFile must be provided."
+			return
+		}
+		
+		try
+		{
+			$getMessage = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/users/$userIds/messages?filter=internetMessageId eq '$internetMessageId'"
+			$message = $getMessage.value[0]
+			$ReceivedDateTime = [datetime]::Parse($message.receivedDateTime).ToString("yyyyMMdd_HHmmss")
+			$messageId = $message.id
+			$subject = $message.Subject -replace '[\\/:*?"<>|]', '_'
+			
+			if ($output -eq "txt")
+			{
+				$filePath = "$outputDir\$ReceivedDateTime-$subject.txt"
+			}
+			
+			else
+			{
+				$filePath = "$outputDir\$ReceivedDateTime-$subject.eml"
+			}
+			
+			$contentUri = "https://graph.microsoft.com/v1.0/users/$userIds/messages/" + $messageId + "/`$value"
+			Invoke-MgGraphRequest -Method GET $contentUri -OutputFilePath $filePath
+			Write-logFile -Message "[INFO] Output written to $filePath" -Color "Green"
+			
+			if ($attachment.IsPresent)
+			{
+				Get-Attachment -userIds $Userids -internetMessageId $internetMessageId
+			}
+		}
+		catch
+		{
+			Write-logFile -Message "[WARNING] The 'Mail.Readwrite' is an application-level permission, requiring an application-based connection through the 'Connect-MgGraph' command for its use." -Color "Red"
+			Write-logFile -Message "[ERROR] An error occurred: $($_.Exception.Message)"
+			return
+		}
+	}
 }
 
 
-Function Get-Attachment {
+Function Get-Attachment
+{
 <#
     .SYNOPSIS
     Get a specific attachment.
@@ -175,68 +199,79 @@ Function Get-Attachment {
 	Get-Attachment -userIds fortunahodan@bonacu.onmicrosoft.com -internetMessageId "<d6f15b97-e3e3-4871-adb2-e8d999d51f34@az.westeurope.microsoft.com>" -OutputDir C:\Windows\Temp
 	Retrieves an attachment and saves it to C:\Windows\Temp folder.
 #>
-    [CmdletBinding()]
-	param(
-		[Parameter(Mandatory=$true)]$userIds,
-		[Parameter(Mandatory=$true)]$internetMessageId,
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		$userIds,
+		[Parameter(Mandatory = $true)]
+		$internetMessageId,
 		[string]$outputDir = "Output\EmailExport"
 	)
-
-    Write-logFile -Message "[INFO] Running Get-Attachment" -Color "Green"
-
-    if (!(Test-Path -Path $outputDir)) {
-        Write-LogFile -Message "[INFO] Creating the following directory: $outputDir"
-        New-Item -ItemType Directory -Path $outputDir -Force > $null
-    } else {
-        Write-LogFile -Message "[INFO] Directory exists: $outputDir"
-    }
-
-    try {
-        $getMessage = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/users/$userIds/messages?filter=internetMessageId eq '$internetMessageId'" -ErrorAction stop
-    }
-    catch {
-        write-logFile -Message "[INFO] Ensure you are connected to Microsoft Graph by running the Connect-MgGraph -Scopes Mail.Readwrite command before executing this script" -Color "Yellow"
-        Write-logFile -Message "[WARNING] The 'Mail.Readwrite' is an application-level permission, requiring an application-based connection through the 'Connect-MgGraph' command for its use." -Color "Red"
-        Write-logFile -Message "[ERROR] An error occurred: $($_.Exception.Message)" -Color "Red"
-        throw
-    }
-
-    $messageId = $getMessage.value.Id
-    $hasAttachment = $getMessage.value.HasAttachments
-    $ReceivedDateTime = $getMessage.value.ReceivedDateTime.ToString("yyyyMMdd_HHmmss")
-    $subject = $getMessage.value.Subject
-
-    if ($hasAttachment -eq "True"){
-        $response = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/users/$userIds/messages/$messageId/attachments"
-
-        foreach ($attachment in $response.value){
-            $filename = $attachment.Name
-        
-            Write-logFile -Message "[INFO] Downloading attachment"
-            Write-host "[INFO] Name: $filename"
-            write-host "[INFO] Size: $($attachment.Size)"
-
-            $uri = "https://graph.microsoft.com/v1.0/users/$userIds/messages/$messageId/attachments/$($attachment.Id)/\$value" 
-            $response = Invoke-MgGraphRequest -Method Get -Uri $uri 
-
-            $filename = $filename -replace '[\\/:*?"<>|]', '_'
-            $filePath = Join-Path $outputDir "$ReceivedDateTime-$subject-$filename"
-
-            $base64B = ($attachment.contentBytes)
-            $decoded = [System.Convert]::FromBase64String($base64B)
-            Set-Content -Path $filePath -Value $decoded -Encoding Byte
-        
-            Write-logFile -Message "[INFO] Output written to '$subject-$filename'" -Color "Green"
-        }
-    }
-
-    else {
-        Write-logFile -Message "[WARNING] No attachment found for: $subject" -Color "Red"
-    }
+	
+	Write-logFile -Message "[INFO] Running Get-Attachment" -Color "Green"
+	
+	if (!(Test-Path -Path $outputDir))
+	{
+		Write-LogFile -Message "[INFO] Creating the following directory: $outputDir"
+		New-Item -ItemType Directory -Path $outputDir -Force > $null
+	}
+	else
+	{
+		Write-LogFile -Message "[INFO] Directory exists: $outputDir"
+	}
+	
+	try
+	{
+		$getMessage = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/users/$userIds/messages?filter=internetMessageId eq '$internetMessageId'" -ErrorAction stop
+	}
+	catch
+	{
+		write-logFile -Message "[INFO] Ensure you are connected to Microsoft Graph by running the Connect-MgGraph -Scopes Mail.Readwrite command before executing this script" -Color "Yellow"
+		Write-logFile -Message "[WARNING] The 'Mail.Readwrite' is an application-level permission, requiring an application-based connection through the 'Connect-MgGraph' command for its use." -Color "Red"
+		Write-logFile -Message "[ERROR] An error occurred: $($_.Exception.Message)" -Color "Red"
+		throw
+	}
+	
+	$messageId = $getMessage.value.Id
+	$hasAttachment = $getMessage.value.HasAttachments
+	$ReceivedDateTime = $getMessage.value.ReceivedDateTime.ToString("yyyyMMdd_HHmmss")
+	$subject = $getMessage.value.Subject
+	
+	if ($hasAttachment -eq "True")
+	{
+		$response = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/users/$userIds/messages/$messageId/attachments"
+		
+		foreach ($attachment in $response.value)
+		{
+			$filename = $attachment.Name
+			
+			Write-logFile -Message "[INFO] Downloading attachment"
+			Write-host "[INFO] Name: $filename"
+			write-host "[INFO] Size: $($attachment.Size)"
+			
+			$uri = "https://graph.microsoft.com/v1.0/users/$userIds/messages/$messageId/attachments/$($attachment.Id)/\$value"
+			$response = Invoke-MgGraphRequest -Method Get -Uri $uri
+			
+			$filename = $filename -replace '[\\/:*?"<>|]', '_'
+			$filePath = Join-Path $outputDir "$ReceivedDateTime-$subject-$filename"
+			
+			$base64B = ($attachment.contentBytes)
+			$decoded = [System.Convert]::FromBase64String($base64B)
+			Set-Content -Path $filePath -Value $decoded -Encoding Byte
+			
+			Write-logFile -Message "[INFO] Output written to '$subject-$filename'" -Color "Green"
+		}
+	}
+	
+	else
+	{
+		Write-logFile -Message "[WARNING] No attachment found for: $subject" -Color "Red"
+	}
 }
 
 
-Function Show-Email {
+Function Show-Email
+{
 <#
     .SYNOPSIS
     Show a specific email in the PowerShell Window.
@@ -249,26 +284,30 @@ Function Show-Email {
     Show a specific email in the PowerShell Window.
 	
 #>
-    [CmdletBinding()]
-	param(
-		[Parameter(Mandatory=$true)]$userIds,
-		[Parameter(Mandatory=$true)]$internetMessageId
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		$userIds,
+		[Parameter(Mandatory = $true)]
+		$internetMessageId
 	)
-
-    $requiredScopes = @("Mail.Readwrite")
-    $graphAuth = Get-GraphAuthType -RequiredScopes $RequiredScopes
-
-    Write-logFile -Message "[INFO] Running Show-Email" -Color "Green"
-
-    try {
-
-        $message = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/users/$userIds/messages?filter=internetMessageId eq '$internetMessageId'" -ErrorAction stop
-    }
-    catch {
-        Write-logFile -Message "[WARNING] The 'Mail.Readwrite' is an application-level permission, requiring an application-based connection through the 'Connect-MgGraph' command for its use." -Color "Red"
-        Write-logFile -Message "[ERROR] An error occurred: $($_.Exception.Message)" -Color "Red"
-        throw
-    }
-
-    $message.Value
+	
+	$requiredScopes = @("Mail.Readwrite")
+	$graphAuth = Get-GraphAuthType -RequiredScopes $RequiredScopes
+	
+	Write-logFile -Message "[INFO] Running Show-Email" -Color "Green"
+	
+	try
+	{
+		
+		$message = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/users/$userIds/messages?filter=internetMessageId eq '$internetMessageId'" -ErrorAction stop
+	}
+	catch
+	{
+		Write-logFile -Message "[WARNING] The 'Mail.Readwrite' is an application-level permission, requiring an application-based connection through the 'Connect-MgGraph' command for its use." -Color "Red"
+		Write-logFile -Message "[ERROR] An error occurred: $($_.Exception.Message)" -Color "Red"
+		throw
+	}
+	
+	$message.Value
 }

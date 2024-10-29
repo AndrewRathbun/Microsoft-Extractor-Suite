@@ -76,46 +76,53 @@ function Get-UALAll
 #>
 	[CmdletBinding()]
 	param (
-        [string]$StartDate,
-        [string]$EndDate,
-        [string]$UserIds = "*",
-        [int]$Interval = 720,
-        [string]$Output = "CSV",
-        [switch]$MergeOutput,
-        [string]$OutputDir,
-        [string]$Encoding = "UTF8",
+		[string]$StartDate,
+		[string]$EndDate,
+		[string]$UserIds = "*",
+		[int]$Interval = 720,
+		[string]$Output = "CSV",
+		[switch]$MergeOutput,
+		[string]$OutputDir,
+		[string]$Encoding = "UTF8",
 		[string]$ObjectIds
-    )
+	)
 	
-	try {
+	try
+	{
 		$areYouConnected = Search-UnifiedAuditLog -StartDate (Get-Date).AddDays(-1) -EndDate (Get-Date) -ResultSize 1 -ErrorAction Stop
 	}
-	catch {
+	catch
+	{
 		write-logFile -Message "[INFO] Ensure you are connected to M365 by running the Connect-M365 command before executing this script" -Color "Yellow"
 		Write-logFile -Message "[ERROR] An error occurred: $($_.Exception.Message)" -Color "Red"
 		throw
 	}
-
+	
 	write-logFile -Message "[INFO] Running Get-UALAll" -Color "Green"
-
+	
 	StartDate
 	EndDate
 	
-	$date = [datetime]::Now.ToString('yyyyMMddHHmmss') 
-	if ($OutputDir -eq "" ){
+	$date = [datetime]::Now.ToString('yyyyMMddHHmmss')
+	if ($OutputDir -eq "")
+	{
 		$OutputDir = "Output\UnifiedAuditLog\$date"
-		If (!(test-path $OutputDir)) {
+		If (!(test-path $OutputDir))
+		{
 			Write-LogFile -Message "[INFO] Creating the following directory: $OutputDir"
 			New-Item -ItemType Directory -Force -Name $OutputDir > $null
 		}
 	}
-
-	else {
-		if (Test-Path -Path $OutputDir) {
+	
+	else
+	{
+		if (Test-Path -Path $OutputDir)
+		{
 			write-LogFile -Message "[INFO] Custom directory set to: $OutputDir"
 		}
-	
-		else {
+		
+		else
+		{
 			write-Error "[Error] Custom directory invalid: $OutputDir exiting script" -ErrorAction Stop
 			write-LogFile -Message "[Error] Custom directory invalid: $OutputDir exiting script"
 		}
@@ -125,61 +132,74 @@ function Get-UALAll
 	
 	[DateTime]$currentStart = $script:StartDate
 	[DateTime]$currentEnd = $script:EndDate
-
+	
 	Write-LogFile -Message "[INFO] Extracting all available audit logs between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK"))" -Color "Green"
 	
 	$baseSearchQuery = @{
-        UserIds    = $UserIds
-    }
-
-	if ($ObjectIds) {
-        $baseSearchQuery.ObjectIds = $ObjectIds
-        Write-LogFile -Message "[INFO] Filtering by ObjectIds: $ObjectIds" -Color "Green"
-    }
-
-	while ($currentStart -lt $script:EndDate) {	
+		UserIds = $UserIds
+	}
+	
+	if ($ObjectIds)
+	{
+		$baseSearchQuery.ObjectIds = $ObjectIds
+		Write-LogFile -Message "[INFO] Filtering by ObjectIds: $ObjectIds" -Color "Green"
+	}
+	
+	while ($currentStart -lt $script:EndDate)
+	{
 		$currentEnd = $currentStart.AddMinutes($Interval)
 		$amountResults = Search-UnifiedAuditLog -StartDate $currentStart -EndDate $currentEnd @baseSearchQuery -ResultSize 1 | Select-Object -First 1 -ExpandProperty ResultCount
-
-		if ($null -eq $amountResults) {
+		
+		if ($null -eq $amountResults)
+		{
 			Write-LogFile -Message "[INFO] No audit logs between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")). Moving on!"
 			$CurrentStart = $CurrentEnd
 		}
 		
-		elseif ($amountResults -gt 5000) {
-			while ($amountResults -gt 5000) {
+		elseif ($amountResults -gt 5000)
+		{
+			while ($amountResults -gt 5000)
+			{
 				$amountResults = Search-UnifiedAuditLog -StartDate $currentStart -EndDate $CurrentEnd -ResultSize 1 @baseSearchQuery | Select-Object -First 1 -ExpandProperty ResultCount
-				if ($amountResults -lt 5000) {
-					if ($Interval -eq 0) {
+				if ($amountResults -lt 5000)
+				{
+					if ($Interval -eq 0)
+					{
 						Exit
 					}
 				}
-
-				else {
+				
+				else
+				{
 					Write-LogFile -Message "[WARNING] $amountResults entries between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) exceeding the maximum of 5000 of entries" -Color "Red"
-					$interval = [math]::Round(($Interval/(($amountResults/5000)*1.25)),2)
+					$interval = [math]::Round(($Interval/(($amountResults/5000) * 1.25)), 2)
 					$currentEnd = $currentStart.AddMinutes($Interval)
 					Write-LogFile -Message "[INFO] Temporary lowering time interval to $Interval minutes" -Color "Yellow"
 				}
 			}
 		}
-															
-		else {
+		
+		else
+		{
 			$Interval = $resetInterval
 			
-			if ($currentEnd -gt $script:EndDate) {
+			if ($currentEnd -gt $script:EndDate)
+			{
 				$currentEnd = $script:EndDate
 			}
 			
 			$currentTries = 0
 			$sessionID = $currentStart.ToString("yyyyMMddHHmmss")
-				
-			while ($true) {
-				[Array]$results = Search-UnifiedAuditLog -StartDate $CurrentStart -EndDate $currentEnd -SessionCommand ReturnLargeSet -ResultSize $resultSize @baseSearchQuery 
+			
+			while ($true)
+			{
+				[Array]$results = Search-UnifiedAuditLog -StartDate $CurrentStart -EndDate $currentEnd -SessionCommand ReturnLargeSet -ResultSize $resultSize @baseSearchQuery
 				$currentCount = 0
 				
-				if ($null -eq $results -or $results.Count -eq 0) {
-					if ($currentTries -lt $retryCount) {
+				if ($null -eq $results -or $results.Count -eq 0)
+				{
+					if ($currentTries -lt $retryCount)
+					{
 						Write-LogFile -Message "[WARNING] The download encountered an issue and there might be incomplete data" -Color "Red"
 						Write-LogFile -Message "[INFO] Sleeping 10 seconds before we try again" -Color "Red"
 						Start-Sleep -Seconds 10
@@ -187,18 +207,21 @@ function Get-UALAll
 						continue
 					}
 					
-					else{
+					else
+					{
 						Write-LogFile -Message "[WARNING] Empty data set returned between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")). Retry count reached. Moving forward!"
 						break
 					}
 				}
 				
-				else {					
+				else
+				{
 					$currentTotal = $results[0].ResultCount
 					$currentCount = $currentCount + $results.Count
 					Write-LogFile -Message "[INFO] Found $currentTotal audit logs between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK"))"
 					
-					if ($currentTotal -eq $results[$results.Count - 1].ResultIndex) {
+					if ($currentTotal -eq $results[$results.Count - 1].ResultIndex)
+					{
 						$message = "[INFO] Successfully retrieved $($currentCount) records out of total $($currentTotal) for the current time range. Moving on!"
 						
 						if ($Output -eq "JSON")
@@ -207,37 +230,40 @@ function Get-UALAll
 								$_.AuditData = $_.AuditData | ConvertFrom-Json
 								$_
 							}
-
+							
 							$json = $results | ConvertTo-Json -Depth 100
 							$json | Out-File -Append "$OutputDir/UAL-$sessionID.json" -Encoding $Encoding
 							Add-Content "$OutputDir/UAL-$sessionID.json" "`n"
-							Write-LogFile -Message $message  -Color "Green"
+							Write-LogFile -Message $message -Color "Green"
 						}
-						elseif ($Output -eq "CSV") {
+						elseif ($Output -eq "CSV")
+						{
 							$results | export-CSV "$OutputDir/UAL-$sessionID.csv" -NoTypeInformation -Append -Encoding $Encoding
 							Write-LogFile -Message $message -Color "Green"
 						}
 						
 						break
 					}
-				}				
+				}
 			}
 			$CurrentStart = $CurrentEnd
 		}
 	}
-
-	if ($Output -eq "CSV" -and ($MergeOutput.IsPresent)) {
+	
+	if ($Output -eq "CSV" -and ($MergeOutput.IsPresent))
+	{
 		Write-LogFile -Message "[INFO] Merging output files into one file"
 		Merge-OutputFiles -OutputDir $OutputDir -OutputType "CSV" -MergedFileName "UAL-Combined.csv"
 	}
-	elseif ($Output -eq "JSON" -and ($MergeOutput.IsPresent)) {
+	elseif ($Output -eq "JSON" -and ($MergeOutput.IsPresent))
+	{
 		Write-LogFile -Message "[INFO] Merging output files into one file"
 		Merge-OutputFiles -OutputDir $OutputDir -OutputType "JSON" -MergedFileName "UAL-Combined.json"
 	}
-
+	
 	Write-LogFile -Message "[INFO] Acquisition complete, check the Output directory for your files.." -Color "Green"
 }
-	
+
 function Get-UALGroup
 {
 <#
@@ -312,147 +338,176 @@ function Get-UALGroup
 	Gets the Azure related unified audit log entries and adds a combined output JSON file at the end of acquisition
 #>
 	[CmdletBinding()]
-	param(
+	param (
 		[string]$StartDate,
 		[string]$EndDate,
 		[string]$UserIds = "*",
 		[string]$Interval = 1440,
 		[string]$Group,
 		[string]$Output = "CSV",
-  		[switch]$MergeOutput,
+		[switch]$MergeOutput,
 		[string]$OutputDir,
 		[string]$Encoding = "UTF8",
 		[string]$ObjectIds
 	)
-
-	try {
+	
+	try
+	{
 		$areYouConnected = Search-UnifiedAuditLog -StartDate (Get-Date).AddDays(-1) -EndDate (Get-Date) -ResultSize 1 -ErrorAction Stop
 	}
-	catch {
+	catch
+	{
 		write-logFile -Message "[INFO] Ensure you are connected to M365 by running the Connect-M365 command before executing this script" -Color "Yellow"
 		Write-logFile -Message "[ERROR] An error occurred: $($_.Exception.Message)" -Color "Red"
 		throw
 	}
 	
-	if ($Group -eq "Exchange") {
-		$recordTypes = "ExchangeAdmin","ExchangeAggregatedOperation","ExchangeItem","ExchangeItemGroup","ExchangeItemAggregated","ComplianceDLPExchange","ComplianceSupervisionExchange","MipAutoLabelExchangeItem"	
+	if ($Group -eq "Exchange")
+	{
+		$recordTypes = "ExchangeAdmin", "ExchangeAggregatedOperation", "ExchangeItem", "ExchangeItemGroup", "ExchangeItemAggregated", "ComplianceDLPExchange", "ComplianceSupervisionExchange", "MipAutoLabelExchangeItem"
 		$recordFile = "Exchange"
 	}
-	elseif ($Group -eq "Azure") {
-		$recordTypes = "AzureActiveDirectory","AzureActiveDirectoryAccountLogon","AzureActiveDirectoryStsLogon"
+	elseif ($Group -eq "Azure")
+	{
+		$recordTypes = "AzureActiveDirectory", "AzureActiveDirectoryAccountLogon", "AzureActiveDirectoryStsLogon"
 		$recordFile = "Azure"
 	}
-	elseif ($Group -eq "Sharepoint") {
-		$recordTypes = "ComplianceDLPSharePoint","SharePoint","SharePointFileOperation","SharePointSharingOperation","SharepointListOperation", "ComplianceDLPSharePointClassification","SharePointCommentOperation", "SharePointListItemOperation", "SharePointContentTypeOperation", "SharePointFieldOperation","MipAutoLabelSharePointItem","MipAutoLabelSharePointPolicyLocation"
+	elseif ($Group -eq "Sharepoint")
+	{
+		$recordTypes = "ComplianceDLPSharePoint", "SharePoint", "SharePointFileOperation", "SharePointSharingOperation", "SharepointListOperation", "ComplianceDLPSharePointClassification", "SharePointCommentOperation", "SharePointListItemOperation", "SharePointContentTypeOperation", "SharePointFieldOperation", "MipAutoLabelSharePointItem", "MipAutoLabelSharePointPolicyLocation"
 		$recordFile = "Sharepoint"
 	}
-	elseif ($Group -eq "Skype") {
-		$recordTypes = "SkypeForBusinessCmdlets","SkypeForBusinessPSTNUsage","SkypeForBusinessUsersBlocked"
+	elseif ($Group -eq "Skype")
+	{
+		$recordTypes = "SkypeForBusinessCmdlets", "SkypeForBusinessPSTNUsage", "SkypeForBusinessUsersBlocked"
 		$recordFile = "Skype"
 	}
-	elseif ($Group -eq "Defender") {
-		$recordTypes = "ThreatIntelligence", "ThreatFinder","ThreatIntelligenceUrl","ThreatIntelligenceAtpContent","Campaign","AirInvestigation","WDATPAlerts","AirManualInvestigation","AirAdminActionInvestigation","MSTIC","MCASAlerts"
+	elseif ($Group -eq "Defender")
+	{
+		$recordTypes = "ThreatIntelligence", "ThreatFinder", "ThreatIntelligenceUrl", "ThreatIntelligenceAtpContent", "Campaign", "AirInvestigation", "WDATPAlerts", "AirManualInvestigation", "AirAdminActionInvestigation", "MSTIC", "MCASAlerts"
 		$recordFile = "Defender"
 	}
-	else {
+	else
+	{
 		Write-LogFile -Message "[WARNING] Invalid input. Select Exchange, Azure, Sharepoint, Defender or Skype" -Color red
 	}
-
+	
 	write-logFile -Message "[INFO] Running Get-UALGroup" -Color "Green"
-
+	
 	StartDate
 	EndDate
 	
-	if ($OutputDir -eq "" ){
+	if ($OutputDir -eq "")
+	{
 		$OutputDir = "Output\UnifiedAuditLog\$recordFile"
-		if (!(test-path $OutputDir)) {
+		if (!(test-path $OutputDir))
+		{
 			write-logFile -Message "[INFO] Creating the following directory: $OutputDir"
 			New-Item -ItemType Directory -Force -Name $OutputDir > $null
 		}
 	}
-
-	else {
-		if (Test-Path -Path $OutputDir) {
+	
+	else
+	{
+		if (Test-Path -Path $OutputDir)
+		{
 			write-LogFile -Message "[INFO] Custom directory set to: $OutputDir"
 		}
-	
-		else {
+		
+		else
+		{
 			write-Error "[Error] Custom directory invalid: $OutputDir exiting script" -ErrorAction Stop
 			write-LogFile -Message "[Error] Custom directory invalid: $OutputDir exiting script"
 		}
 	}
-
+	
 	write-logFile -Message "[INFO] Extracting all available audit logs between $($script:StartDate.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($script:EndDate.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK"))"
 	write-logFile -Message "[INFO] The following RecordType(s) are configured to be extracted:"
-
-	$baseSearchQuery = @{
-        UserIds    = $UserIds
-    }
-
-	if ($ObjectIds) {
-        $baseSearchQuery.ObjectIds = $ObjectIds
-        Write-LogFile -Message "[INFO] Filtering by ObjectIds: $ObjectIds" -Color "Green"
-    }
 	
-	foreach ($record in $recordTypes) {
+	$baseSearchQuery = @{
+		UserIds = $UserIds
+	}
+	
+	if ($ObjectIds)
+	{
+		$baseSearchQuery.ObjectIds = $ObjectIds
+		Write-LogFile -Message "[INFO] Filtering by ObjectIds: $ObjectIds" -Color "Green"
+	}
+	
+	foreach ($record in $recordTypes)
+	{
 		write-logFile -Message "-$record"
 	}
 	
-	foreach ($record in $recordTypes) {
+	foreach ($record in $recordTypes)
+	{
 		$resetInterval = $interval
 		[DateTime]$currentStart = $script:StartDate
 		[DateTime]$currentEnd = $script:EndDate
 		
-		$specificResult = Search-UnifiedAuditLog -StartDate $script:StartDate -EndDate $script:EndDate -RecordType $record @baseSearchQuery -ResultSize 1 |  Format-List -Property ResultCount| out-string -Stream | select-string ResultCount
+		$specificResult = Search-UnifiedAuditLog -StartDate $script:StartDate -EndDate $script:EndDate -RecordType $record @baseSearchQuery -ResultSize 1 |  Format-List -Property ResultCount | out-string -Stream | select-string ResultCount
 		
-		if (($null -ne $specificResult) -and ($specificResult -ne 0)) {
+		if (($null -ne $specificResult) -and ($specificResult -ne 0))
+		{
 			$number = $specificResult.tostring().split(":")[1]
 			write-logFile -Message "[INFO]$($number) Records found for $record" -Color "Green"
-
-			while ($currentStart -lt $script:EndDate) {	
+			
+			while ($currentStart -lt $script:EndDate)
+			{
 				$currentEnd = $currentStart.AddMinutes($Interval)
 				$amountResults = Search-UnifiedAuditLog -StartDate $currentStart -EndDate $currentEnd -RecordType $record @baseSearchQuery -ResultSize 1 | Select-Object -First 1 -ExpandProperty ResultCount
-
-				if ($null -eq $amountResults) {
+				
+				if ($null -eq $amountResults)
+				{
 					Write-LogFile -Message "[INFO] No audit logs between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")). Moving on!"
 					$CurrentStart = $CurrentEnd
 				}
-
-				elseif ($amountResults -gt 5000) {
-					while ($amountResults -gt 5000) {
+				
+				elseif ($amountResults -gt 5000)
+				{
+					while ($amountResults -gt 5000)
+					{
 						$amountResults = Search-UnifiedAuditLog -StartDate $currentStart -EndDate $currentEnd -RecordType $record @baseSearchQuery -ResultSize 1 | Select-Object -First 1 -ExpandProperty ResultCount
-						if ($amountResults -lt 5000) {
-							if ($Interval -eq 0) {
+						if ($amountResults -lt 5000)
+						{
+							if ($Interval -eq 0)
+							{
 								Exit
 							}
 						}
-
-						else {
+						
+						else
+						{
 							Write-LogFile -Message "[WARNING] $amountResults entries between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) exceeding the maximum of 5000 of entries" -Color "Red"
-							$interval = [math]::Round(($Interval/(($amountResults/5000)*1.25)),2)
+							$interval = [math]::Round(($Interval/(($amountResults/5000) * 1.25)), 2)
 							$currentEnd = $currentStart.AddMinutes($Interval)
 							Write-LogFile -Message "[INFO] Temporary lowering time interval to $Interval minutes" -Color "Yellow"
 						}
 					}
 				}
-														
-				else {
-					$Interval = $ResetInterval
 				
+				else
+				{
+					$Interval = $ResetInterval
 					
-					if ($currentEnd -gt $script:EndDate) {
+					
+					if ($currentEnd -gt $script:EndDate)
+					{
 						$currentEnd = $script:EndDate
 					}
 					
 					$CurrentTries = 0
 					$SessionID = $currentStart.ToString("yyyyMMddHHmmss")
-						
-					while ($true) {					
+					
+					while ($true)
+					{
 						[Array]$results = Search-UnifiedAuditLog -StartDate $currentStart -EndDate $currentEnd -RecordType $record @baseSearchQuery -SessionCommand ReturnLargeSet -ResultSize $ResultSize
 						$currentCount = 0
 						
-						if ($null -eq $results -or $results.Count -eq 0) {
-							if ($currentTries -lt $retryCount) {
+						if ($null -eq $results -or $results.Count -eq 0)
+						{
+							if ($currentTries -lt $retryCount)
+							{
 								Write-LogFile -Message "[WARNING] The download encountered an issue and there might be incomplete data" -Color "Red"
 								Write-LogFile -Message "[INFO] Sleeping 10 seconds before we try again" -Color "Red"
 								Start-Sleep -Seconds 10
@@ -460,18 +515,21 @@ function Get-UALGroup
 								continue
 							}
 							
-							else{
+							else
+							{
 								Write-LogFile -Message "[WARNING] Empty data set returned between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")). Retry count reached. Moving forward!"
 								break
 							}
 						}
 						
-						else {	
+						else
+						{
 							$currentTotal = $results[0].ResultCount
 							$currentCount = $currentCount + $results.Count
 							Write-LogFile -Message "[INFO] Found $currentTotal audit logs between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK"))" -Color "Green"
-
-							if ($currentTotal -eq $results[$results.Count - 1].ResultIndex){
+							
+							if ($currentTotal -eq $results[$results.Count - 1].ResultIndex)
+							{
 								$message = "[INFO] Successfully retrieved $($currentCount) records out of total $($currentTotal) for the current time range. Moving on!"
 								
 								if ($Output -eq "JSON")
@@ -480,7 +538,7 @@ function Get-UALGroup
 										$_.AuditData = $_.AuditData | ConvertFrom-Json
 										$_
 									}
-
+									
 									$json = $results | ConvertTo-Json -Depth 100
 									$json | Out-File -Append "$OutputDir/UAL-$sessionID.json" -Encoding $Encoding
 									Add-Content "$OutputDir/UAL-$sessionID.json" "`n"
@@ -500,15 +558,18 @@ function Get-UALGroup
 				$currentStart = $currentEnd
 			}
 		}
-		else {
+		else
+		{
 			Write-LogFile -message "[INFO] No Records found for $Record"
 		}
 	}
-	if ($Output -eq "CSV" -and ($MergeOutput.IsPresent)) {
+	if ($Output -eq "CSV" -and ($MergeOutput.IsPresent))
+	{
 		Write-LogFile -Message "[INFO] Merging output files into one file"
 		Merge-OutputFiles -OutputDir $OutputDir -OutputType "CSV" -MergedFileName "UAL-Combined.csv"
 	}
-	elseif ($Output -eq "JSON" -and ($MergeOutput.IsPresent)) {
+	elseif ($Output -eq "JSON" -and ($MergeOutput.IsPresent))
+	{
 		Write-LogFile -Message "[INFO] Merging output files into one file"
 		Merge-OutputFiles -OutputDir $OutputDir -OutputType "JSON" -MergedFileName "UAL-Combined.json"
 	}
@@ -590,59 +651,67 @@ function Get-UALSpecific
 	Gets the ExchangeItem logging from the unified audit log and adds a combined output JSON file at the end of acquisition
 #>
 	[CmdletBinding()]
-	param(
+	param (
 		[string]$StartDate,
 		[string]$EndDate,
 		[string]$UserIds = "*",
 		[string]$Interval = 1440,
-		[Parameter(Mandatory=$true)]$RecordType,
+		[Parameter(Mandatory = $true)]
+		$RecordType,
 		[string]$Output = "CSV",
-  		[switch]$MergeOutput,
-  		[string]$OutputDir,
+		[switch]$MergeOutput,
+		[string]$OutputDir,
 		[string]$Encoding = "UTF8",
 		[string]$ObjectIds
 	)
-
-	try {
+	
+	try
+	{
 		$areYouConnected = Search-UnifiedAuditLog -StartDate (Get-Date).AddDays(-1) -EndDate (Get-Date) -ResultSize 1 -ErrorAction Stop
 	}
-	catch {
+	catch
+	{
 		write-logFile -Message "[INFO] Ensure you are connected to M365 by running the Connect-M365 command before executing this script" -Color "Yellow"
 		Write-logFile -Message "[ERROR] An error occurred: $($_.Exception.Message)" -Color "Red"
 		throw
 	}
 	
 	write-logFile -Message "[INFO] Running Get-UALSpecific" -Color "Green"
-
+	
 	StartDate
 	EndDate
-
-	if ($Output -eq "JSON") {
+	
+	if ($Output -eq "JSON")
+	{
 		$Output = "JSON"
 		write-logFile -Message "[INFO] Output set to JSON"
 	}
-	else {
+	else
+	{
 		$Output = "CSV"
 		Write-LogFile -Message "[INFO] Output set to CSV"
 	}
-
+	
 	write-logFile -Message "[INFO] Extracting all available audit logs between $($script:StartDate.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($script:EndDate.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK"))"
 	write-logFile -Message "[INFO] The following RecordType(s) are configured to be extracted:"
-
+	
 	$baseSearchQuery = @{
-        UserIds    = $UserIds
-    }
-
-	if ($ObjectIds) {
-        $baseSearchQuery.ObjectIds = $ObjectIds
-        Write-LogFile -Message "[INFO] Filtering by ObjectIds: $ObjectIds" -Color "Green"
-    }
-
-	foreach ($record in $recordType) {
+		UserIds = $UserIds
+	}
+	
+	if ($ObjectIds)
+	{
+		$baseSearchQuery.ObjectIds = $ObjectIds
+		Write-LogFile -Message "[INFO] Filtering by ObjectIds: $ObjectIds" -Color "Green"
+	}
+	
+	foreach ($record in $recordType)
+	{
 		write-logFile -Message "-$record"
 	}
 	
-	foreach ($record in $recordType) {
+	foreach ($record in $recordType)
+	{
 		
 		$resetInterval = $Interval
 		[DateTime]$currentStart = $script:StartDate
@@ -650,96 +719,116 @@ function Get-UALSpecific
 		
 		$specificResult = Search-UnifiedAuditLog -StartDate $script:StartDate -EndDate $script:EndDate -RecordType $record @baseSearchQuery -ResultSize 1 | Select-Object -First 1 -ExpandProperty ResultCount
 		
-		if (($null -ne $specificResult) -and ($specificResult -ne 0)) {
-			if ($OutputDir -eq "" ){
+		if (($null -ne $specificResult) -and ($specificResult -ne 0))
+		{
+			if ($OutputDir -eq "")
+			{
 				$OutputDir = "Output\UnifiedAuditLog\$record"
-				if (!(test-path $OutputDir)) {
+				if (!(test-path $OutputDir))
+				{
 					write-logFile -Message "[INFO] Creating the following output directory: $OutputDir"
 					New-Item -ItemType Directory -Force -Name $OutputDir > $null
 				}
 			}
-
-			else {
-				if (Test-Path -Path $OutputDir) {
+			
+			else
+			{
+				if (Test-Path -Path $OutputDir)
+				{
 					write-LogFile -Message "[INFO] Custom directory set to: $OutputDir"
 				}
-			
-				else {
+				
+				else
+				{
 					write-Error "[Error] Custom directory invalid: $OutputDir exiting script" -ErrorAction Stop
 					write-LogFile -Message "[Error] Custom directory invalid: $OutputDir exiting script"
 				}
 			}
-
+			
 			$number = $specificResult.tostring().split(":")[1]
 			write-logFile -Message "[INFO]$($number) Records found for $record" -Color "Green"
 			
-			while ($currentStart -lt $script:EndDate) {	
+			while ($currentStart -lt $script:EndDate)
+			{
 				$currentEnd = $currentStart.AddMinutes($Interval)
 				$amountResults = Search-UnifiedAuditLog -StartDate $currentStart -EndDate $currentEnd -RecordType $record @baseSearchQuery -ResultSize 1 | Select-Object -First 1 -ExpandProperty ResultCount
 				
 				
-				if ($null -eq $amountResults) {
+				if ($null -eq $amountResults)
+				{
 					Write-LogFile -Message "[INFO] No audit logs between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")). Moving on!"
 					$CurrentStart = $CurrentEnd
 				}
 				
-				elseif ($amountResults -gt 5000) {
-					while ($amountResults -gt 5000) {
+				elseif ($amountResults -gt 5000)
+				{
+					while ($amountResults -gt 5000)
+					{
 						$amountResults = Search-UnifiedAuditLog -StartDate $currentStart -EndDate $currentEnd -RecordType $record @baseSearchQuery -ResultSize 1 | Select-Object -First 1 -ExpandProperty ResultCount
-						if ($amountResults -lt 5000) {
-							if ($Interval -eq 0) {
+						if ($amountResults -lt 5000)
+						{
+							if ($Interval -eq 0)
+							{
 								Exit
 							}
 						}
-
-						else {
+						
+						else
+						{
 							Write-LogFile -Message "[WARNING] $amountResults entries between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) exceeding the maximum of 5000 of entries" -Color "Red"
-							$interval = [math]::Round(($Interval/(($amountResults/5000)*1.25)),2)
+							$interval = [math]::Round(($Interval/(($amountResults/5000) * 1.25)), 2)
 							$currentEnd = $currentStart.AddMinutes($Interval)
 							Write-LogFile -Message "[INFO] Temporary lowering time interval to $Interval minutes" -Color "Yellow"
 						}
 					}
-				}				
-														
-				else {
-					$Interval = $ResetInterval
+				}
 				
-					if ($currentEnd -gt $script:endDate) {
+				else
+				{
+					$Interval = $ResetInterval
+					
+					if ($currentEnd -gt $script:endDate)
+					{
 						$currentEnd = $script:endDate
 					}
 					
 					$currentTries = 0
 					$sessionID = $currentStart.ToString("yyyyMMddHHmmss")
-						
-					while ($true) {					
+					
+					while ($true)
+					{
 						[Array]$results = Search-UnifiedAuditLog -StartDate $currentStart -EndDate $currentEnd -RecordType $record @baseSearchQuery -SessionCommand ReturnLargeSet -ResultSize $ResultSize
 						$CurrentCount = 0
 						
-						if ($null -eq $results -or $results.Count -eq 0) {
-							if ($currentTries -lt $retryCount) {
+						if ($null -eq $results -or $results.Count -eq 0)
+						{
+							if ($currentTries -lt $retryCount)
+							{
 								$currentTries = $currentTries + 1
 								continue
 							}
-							else {
+							else
+							{
 								Write-LogFile -Message "[INFO] No audit logs between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK"))"
 								break
 							}
 						}
-								
+						
 						$currentTotal = $results[0].ResultCount
 						$currentCount = $currentCount + $results.Count
 						Write-LogFile -Message "[INFO] Found $currentTotal audit logs between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK"))" -Color "Green"
-
-						if ($currentTotal -eq $results[$results.Count - 1].ResultIndex) {
+						
+						if ($currentTotal -eq $results[$results.Count - 1].ResultIndex)
+						{
 							$message = "[INFO] Successfully retrieved $($currentCount) records out of total $($currentTotal) for the current time range. Moving on!"
-
+							
 							if ($Output -eq "JSON")
 							{
 								$results = $results | ForEach-Object {
 									$_.AuditData = $_.AuditData | ConvertFrom-Json
 									$_
 								}
-
+								
 								$json = $results | ConvertTo-Json -Depth 100
 								$json | Out-File -Append "$OutputDir/UAL-$sessionID.json" -Encoding $Encoding
 								Add-Content "$OutputDir/UAL-$sessionID.json" "`n"
@@ -754,24 +843,27 @@ function Get-UALSpecific
 						}
 					}
 				}
-		
+				
 				$currentStart = $currentEnd
 			}
 		}
-		else {
+		else
+		{
 			Write-LogFile -Message "[INFO] No Records found for $record"
 		}
 	}
-
-	if ($Output -eq "CSV" -and ($MergeOutput.IsPresent)) {
+	
+	if ($Output -eq "CSV" -and ($MergeOutput.IsPresent))
+	{
 		Write-LogFile -Message "[INFO] Merging output files into one file"
 		Merge-OutputFiles -OutputDir $OutputDir -OutputType "CSV" -MergedFileName "UAL-Combined.csv"
 	}
-	elseif ($Output -eq "JSON" -and ($MergeOutput.IsPresent)) {
+	elseif ($Output -eq "JSON" -and ($MergeOutput.IsPresent))
+	{
 		Write-LogFile -Message "[INFO] Merging output files into one file"
 		Merge-OutputFiles -OutputDir $OutputDir -OutputType "JSON" -MergedFileName "UAL-Combined.json"
 	}
-
+	
 	Write-LogFile -Message "[INFO] Acquisition complete, check the Output directory for your files.." -Color "Green"
 }
 
@@ -841,32 +933,36 @@ function Get-UALSpecificActivity
 	Gets all the MailItemsAccessed logging from the unified audit log for the user Test@invictus-ir.com in JSON format with a time interval of 720.
 #>
 	[CmdletBinding()]
-	param(
+	param (
 		[string]$StartDate,
 		[string]$EndDate,
 		[string]$UserIds = "*",
 		[string]$Interval = 1440,
-		[Parameter(Mandatory=$true)]$ActivityType,
+		[Parameter(Mandatory = $true)]
+		$ActivityType,
 		[string]$Output = "CSV",
 		[string]$OutputDir,
 		[string]$Encoding = "UTF8",
-        [switch]$MergeOutput
+		[switch]$MergeOutput
 	)
-
-	try {
+	
+	try
+	{
 		$areYouConnected = Search-UnifiedAuditLog -StartDate (Get-Date).AddDays(-1) -EndDate (Get-Date) -ResultSize 1 -ErrorAction Stop
 	}
-	catch {
+	catch
+	{
 		write-logFile -Message "[INFO] Ensure you are connected to M365 by running the Connect-M365 command before executing this script" -Color "Yellow"
 		throw
 	}
 	
 	write-logFile -Message "[INFO] Running Get-UALSpecificActivity" -Color "Green"
-
+	
 	StartDate
 	EndDate
 	
-	if ($Output -eq "JSON") {
+	if ($Output -eq "JSON")
+	{
 		$Output = "JSON"
 		write-logFile -Message "[INFO] Output set to JSON"
 	}
@@ -875,15 +971,17 @@ function Get-UALSpecificActivity
 		$Output = "CSV"
 		write-logFile -Message "[INFO] Output set to CSV"
 	}
-
+	
 	write-logFile -Message "[INFO] Extracting all available audit logs between $($script:StartDate.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($script:EndDate.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK"))"
 	write-logFile -Message "[INFO] The following ActivityType(s) are configured to be extracted:"
-
-	foreach ($record in $ActivityType) {
+	
+	foreach ($record in $ActivityType)
+	{
 		write-logFile -Message "-$record"
 	}
 	
-	foreach ($record in $ActivityType) {
+	foreach ($record in $ActivityType)
+	{
 		
 		$resetInterval = $Interval
 		[DateTime]$currentStart = $script:StartDate
@@ -891,96 +989,116 @@ function Get-UALSpecificActivity
 		
 		$specificResult = Search-UnifiedAuditLog -StartDate $script:StartDate -EndDate $script:EndDate -Operations $record -UserIds $UserIds -ResultSize 1 | Select-Object -First 1 -ExpandProperty ResultCount
 		
-		if (($null -ne $specificResult) -and ($specificResult -ne 0)) {
-			if ($OutputDir -eq "" ){
+		if (($null -ne $specificResult) -and ($specificResult -ne 0))
+		{
+			if ($OutputDir -eq "")
+			{
 				$OutputDir = "Output\UnifiedAuditLog\$record\"
-				if (!(test-path $OutputDir)) {
+				if (!(test-path $OutputDir))
+				{
 					write-logFile -Message "[INFO] Creating the following output directory: $OutputDir"
-					New-Item -ItemType Directory -Force -Name $OutputDir > $null 
+					New-Item -ItemType Directory -Force -Name $OutputDir > $null
 				}
 			}
-
-			else {
-				if (Test-Path -Path $OutputDir) {
+			
+			else
+			{
+				if (Test-Path -Path $OutputDir)
+				{
 					write-LogFile -Message "[INFO] Custom directory set to: $OutputDir"
 				}
-			
-				else {
+				
+				else
+				{
 					write-Error "[Error] Custom directory invalid: $OutputDir exiting script" -ErrorAction Stop
 					write-LogFile -Message "[Error] Custom directory invalid: $OutputDir exiting script"
 				}
 			}
-
+			
 			$number = $specificResult.tostring().split(":")[1]
 			write-logFile -Message "[INFO]$($number) Records found for $record" -Color "Green"
 			
-			while ($currentStart -lt $script:EndDate) {	
+			while ($currentStart -lt $script:EndDate)
+			{
 				$currentEnd = $currentStart.AddMinutes($Interval)
 				$amountResults = Search-UnifiedAuditLog -UserIds $UserIds -StartDate $currentStart -EndDate $currentEnd -Operations $record -ResultSize 1 | Select-Object -First 1 -ExpandProperty ResultCount
 				
 				
-				if ($null -eq $amountResults) {
+				if ($null -eq $amountResults)
+				{
 					Write-LogFile -Message "[INFO] No audit logs between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")). Moving on!"
 					$CurrentStart = $CurrentEnd
 				}
 				
-				elseif ($amountResults -gt 5000) {
-					while ($amountResults -gt 5000) {
+				elseif ($amountResults -gt 5000)
+				{
+					while ($amountResults -gt 5000)
+					{
 						$amountResults = Search-UnifiedAuditLog -StartDate $currentStart -EndDate $currentEnd -UserIds $UserIds -Operations $record -ResultSize 1 | Select-Object -First 1 -ExpandProperty ResultCount
-						if ($amountResults -lt 5000) {
-							if ($Interval -eq 0) {
+						if ($amountResults -lt 5000)
+						{
+							if ($Interval -eq 0)
+							{
 								Exit
 							}
 						}
-
-						else {
+						
+						else
+						{
 							Write-LogFile -Message "[WARNING] $amountResults entries between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) exceeding the maximum of 5000 of entries" -Color "Red"
-							$interval = [math]::Round(($Interval/(($amountResults/5000)*1.25)),2)
+							$interval = [math]::Round(($Interval/(($amountResults/5000) * 1.25)), 2)
 							$currentEnd = $currentStart.AddMinutes($Interval)
 							Write-LogFile -Message "[INFO] Temporary lowering time interval to $Interval minutes" -Color "Yellow"
 						}
 					}
-				}				
-														
-				else {
-					$Interval = $ResetInterval
+				}
 				
-					if ($currentEnd -gt $script:endDate) {
+				else
+				{
+					$Interval = $ResetInterval
+					
+					if ($currentEnd -gt $script:endDate)
+					{
 						$currentEnd = $script:endDate
 					}
 					
 					$currentTries = 0
 					$sessionID = $currentStart.ToString("yyyyMMddHHmmss")
-						
-					while ($true) {					
+					
+					while ($true)
+					{
 						[Array]$results = Search-UnifiedAuditLog -StartDate $currentStart -EndDate $currentEnd -UserIds $UserIds -Operations $record -SessionCommand ReturnLargeSet -ResultSize $ResultSize
 						$CurrentCount = 0
 						
-						if ($null -eq $results -or $results.Count -eq 0) {
-							if ($currentTries -lt $retryCount) {
+						if ($null -eq $results -or $results.Count -eq 0)
+						{
+							if ($currentTries -lt $retryCount)
+							{
 								$currentTries = $currentTries + 1
 								continue
 							}
-							else {
+							else
+							{
 								Write-LogFile -Message "[INFO] No audit logs between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK"))"
 								break
 							}
 						}
-								
+						
 						$currentTotal = $results[0].ResultCount
 						$currentCount = $currentCount + $results.Count
 						Write-LogFile -Message "[INFO] Found $currentTotal audit logs between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK"))"
-
-						if ($currentTotal -eq $results[$results.Count - 1].ResultIndex) {
+						
+						if ($currentTotal -eq $results[$results.Count - 1].ResultIndex)
+						{
 							$message = "[INFO] Successfully retrieved $($currentCount) records out of total $($currentTotal) for the current time range. Moving on!"
-
+							
 							if ($Output -eq "JSON")
 							{
 								$results = $results | ForEach-Object {
 									$_.AuditData = $_.AuditData | ConvertFrom-Json
 									$_
 								}
-
+								
 								$json = $results | ConvertTo-Json -Depth 100
 								$json | Out-File -Append "$OutputDir/UAL-$sessionID.json" -Encoding $Encoding
 								Add-Content "$OutputDir/UAL-$sessionID.json" "`n"
@@ -995,22 +1113,25 @@ function Get-UALSpecificActivity
 						}
 					}
 				}
-		
+				
 				$currentStart = $currentEnd
 			}
 		}
-		else {
+		else
+		{
 			Write-LogFile -Message "[INFO] No Records found for $record"
 		}
 	}
-	if ($Output -eq "CSV" -and ($MergeOutput.IsPresent)) {
+	if ($Output -eq "CSV" -and ($MergeOutput.IsPresent))
+	{
 		Write-LogFile -Message "[INFO] Merging output files into one file"
 		Merge-OutputFiles -OutputDir $OutputDir -OutputType "CSV" -MergedFileName "UAL-Combined.csv"
 	}
-	elseif ($Output -eq "JSON" -and ($MergeOutput.IsPresent)) {
+	elseif ($Output -eq "JSON" -and ($MergeOutput.IsPresent))
+	{
 		Write-LogFile -Message "[INFO] Merging output files into one file"
 		Merge-OutputFiles -OutputDir $OutputDir -OutputType "JSON" -MergedFileName "UAL-Combined.json"
 	}
-
+	
 	Write-LogFile -Message "[INFO] Acquisition complete, check the Output directory for your files.." -Color "Green"
 }

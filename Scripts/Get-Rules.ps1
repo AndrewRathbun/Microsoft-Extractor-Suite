@@ -13,11 +13,13 @@ function Show-TransportRules
     .Example
     Show-TransportRules
 #>
-	$transportRules = Get-TransportRule | Select-Object -Property Name,Description,CreatedBy,WhenChanged,State
+	$transportRules = Get-TransportRule | Select-Object -Property Name, Description, CreatedBy, WhenChanged, State
 	
-	if ($null -ne $transportRules) {
+	if ($null -ne $transportRules)
+	{
 		write-LogFile -Message "[INFO] Checking all TransportRules"
-		foreach ($rule in $transportRules) {
+		foreach ($rule in $transportRules)
+		{
 			write-LogFile -Message "[INFO] Found a TransportRule" -Color "Green"
 			write-LogFile -Message "Rule Name $($rule.name)" -Color "Yellow"
 			write-LogFile -Message "Rule CreatedBy: $($rule.CreatedBy)" -Color "Yellow"
@@ -49,32 +51,37 @@ function Get-TransportRules
     .Example
     Get-TransportRules
 #>
-
+	
 	[CmdletBinding()]
 	param (
-		[string]$OutputDir = "Output\Rules"	,
+		[string]$OutputDir = "Output\Rules",
 		[string]$Encoding = "UTF8"
 	)
-
-	if (!(test-path $OutputDir)) {
+	
+	if (!(test-path $OutputDir))
+	{
 		New-Item -ItemType Directory -Force -Name $OutputDir > $null
 		write-LogFile -Message "[INFO] Creating the following directory: $OutputDir"
 	}
-	else{
-		if (Test-Path -Path $OutputDir) {
-  			write-LogFile -Message "[INFO] Custom directory set to: $OutputDir"
-     	}
-       	else {
-    		write-Error "[Error] Custom directory invalid: $OutputDir exiting script" -ErrorAction Stop
-       		write-LogFile -Message "[Error] Custom directory invalid: $OutputDir exiting script"
-	 	}
-   	}
-    
-	$filename = "$($date)-TransportRules.csv"
-	$outputDirectory = Join-Path $OutputDir $filename		
-	$transportRules = Get-TransportRule | Select-Object -Property Name,Description,CreatedBy,WhenChanged,State
+	else
+	{
+		if (Test-Path -Path $OutputDir)
+		{
+			write-LogFile -Message "[INFO] Custom directory set to: $OutputDir"
+		}
+		else
+		{
+			write-Error "[Error] Custom directory invalid: $OutputDir exiting script" -ErrorAction Stop
+			write-LogFile -Message "[Error] Custom directory invalid: $OutputDir exiting script"
+		}
+	}
 	
-	if ($null -ne $transportRules) {
+	$filename = "$($date)-TransportRules.csv"
+	$outputDirectory = Join-Path $OutputDir $filename
+	$transportRules = Get-TransportRule | Select-Object -Property Name, Description, CreatedBy, WhenChanged, State
+	
+	if ($null -ne $transportRules)
+	{
 		$transportRules | export-csv -NoTypeInformation $outputDirectory -Encoding $Encoding
 		write-LogFile -Message "[INFO] Transport rules are collected and writen to: $outputDirectory" -Color "Green"
 	}
@@ -96,20 +103,23 @@ function Show-MailboxRules
     Show-MailboxRules -UserIds "HR@invictus-ir.com,Test@Invictus-ir.com"
 #>
 	[CmdletBinding()]
-	param(
+	param (
 		[string]$UserIds
 	)
-		
+	
 	$amountofRules = 0
-	if ($UserIds -eq "") {		
-		Get-mailbox -resultsize unlimited  |
+	if ($UserIds -eq "")
+	{
+		Get-mailbox -resultsize unlimited |
 		ForEach-Object {
 			write-LogFile -Message "[INFO] Checking $($_.UserPrincipalName)..."
 			
-			$inboxrule = Get-inboxrule -Mailbox $_.UserPrincipalName  
-			if ($inboxrule) {
+			$inboxrule = Get-inboxrule -Mailbox $_.UserPrincipalName
+			if ($inboxrule)
+			{
 				write-LogFile -Message "[INFO] Found InboxRule(s) for: $($_.UserPrincipalName)..." -Color "Green"
-				foreach($rule in $inboxrule){
+				foreach ($rule in $inboxrule)
+				{
 					$amountofRules = $amountofRules + 1
 					write-LogFile -Message "Username: $($_.UserPrincipalName)" -Color "Yellow"
 					write-LogFile -Message "RuleName: $($rule.name)" -Color "Yellow"
@@ -123,17 +133,21 @@ function Show-MailboxRules
 			}
 		}
 	}
-
-	else {	
-		if ($UserIds -match ",") {
+	
+	else
+	{
+		if ($UserIds -match ",")
+		{
 			$UserIds.Split(",") | ForEach-Object {
 				$user = $_
 				Write-Output ('[INFO] Checking {0}...' -f $user)
 				
-				$inboxrule = get-inboxrule -Mailbox $user 
-				if ($inboxrule) {
+				$inboxrule = get-inboxrule -Mailbox $user
+				if ($inboxrule)
+				{
 					write-LogFile -Message "[INFO] Found InboxRule(s) for: $UserIds..." -Color "Green"
-					foreach($rule in $inboxrule){
+					foreach ($rule in $inboxrule)
+					{
 						$amountofRules = $amountofRules + 1
 						write-LogFile -Message "Username: $user" -Color "Yellow"
 						write-LogFile -Message "RuleName: $($rule.name)" -Color "Yellow"
@@ -147,13 +161,16 @@ function Show-MailboxRules
 				}
 			}
 		}
-				
-		else {
+		
+		else
+		{
 			Write-Output ('[INFO] Checking {0}...' -f $UserIds)
-			$inboxrule = get-inboxrule -Mailbox $UserIds 
-			if ($inboxrule) {
+			$inboxrule = get-inboxrule -Mailbox $UserIds
+			if ($inboxrule)
+			{
 				write-LogFile -Message "[INFO] Found InboxRule(s) for: $UserIds..." -Color "Green"
-				foreach($rule in $inboxrule){
+				foreach ($rule in $inboxrule)
+				{
 					$amountofRules = $amountofRules + 1
 					write-LogFile -Message "Username: $UserIds" -Color "Yellow"
 					write-LogFile -Message "RuleName: $($rule.name)" -Color "Yellow"
@@ -167,14 +184,16 @@ function Show-MailboxRules
 			}
 		}
 	}
-
-	if ($amountofRules -gt 0) {
+	
+	if ($amountofRules -gt 0)
+	{
 		write-LogFile -Message "[INFO] A total of $amountofRules Inbox Rules found" -Color "Green"
 	}
-	else {
+	else
+	{
 		write-LogFile -Message "[INFO] No Inbox Rules found!" -Color "Yellow"
 	}
-		
+	
 	
 }
 
@@ -204,87 +223,98 @@ function Get-MailboxRules
     Get-MailboxRules -UserIds "HR@invictus-ir.com,Test@Invictus-ir.com"
 #>
 	[CmdletBinding()]
-	param(
+	param (
 		[string]$UserIds,
 		[string]$OutputDir = "Output\Rules",
 		[string]$Encoding = "UTF8"
 	)
 	
 	$RuleList = @()
-	if (!(test-path $OutputDir)) {
+	if (!(test-path $OutputDir))
+	{
 		write-LogFile -Message "[INFO] Creating the following directory: $OutputDir"
 		New-Item -ItemType Directory -Force -Name $OutputDir > $null
 	}
-
-	else{
-		if (Test-Path -Path $OutputDir) {
-  			write-LogFile -Message "[INFO] Custom directory set to: $OutputDir"
-     	}
-
-       	else {
-	 		write-LogFile -Message "[Error] Custom directory invalid: $OutputDir exiting script"
-    		write-Error "[Error] Custom directory invalid: $OutputDir exiting script" -ErrorAction Stop
-	 	}
-   	}
-    
+	
+	else
+	{
+		if (Test-Path -Path $OutputDir)
+		{
+			write-LogFile -Message "[INFO] Custom directory set to: $OutputDir"
+		}
+		
+		else
+		{
+			write-LogFile -Message "[Error] Custom directory invalid: $OutputDir exiting script"
+			write-Error "[Error] Custom directory invalid: $OutputDir exiting script" -ErrorAction Stop
+		}
+	}
+	
 	$filename = "$($date)-MailboxRules.csv"
 	$outputDirectory = Join-Path $OutputDir $filename
 	
 	$amountofRules = 0
-	if ($UserIds -eq "") {		
+	if ($UserIds -eq "")
+	{
 		$totalRules = 0
-		Get-mailbox -resultsize unlimited  |
+		Get-mailbox -resultsize unlimited |
 		ForEach-Object {
 			write-LogFile -Message ('[INFO] Checking {0}...' -f $_.UserPrincipalName)
 			
-			$inboxrule = Get-inboxrule -Mailbox $_.UserPrincipalName  
-			if ($inboxrule) {
+			$inboxrule = Get-inboxrule -Mailbox $_.UserPrincipalName
+			if ($inboxrule)
+			{
 				$amountofRules = 0
-				foreach ($rule in $inboxrule) {
+				foreach ($rule in $inboxrule)
+				{
 					$tempval = [pscustomobject]@{
-						UserName = $_.UserPrincipalName
-						RuleName = $rule.name           
-						RuleEnabled = $rule.Enabled
-						CopytoFolder = $rule.CopyToFolder
-						MovetoFolder = $rule.MoveToFolder
-						RedirectTo = $rule.RedirectTo
-						ForwardTo = $rule.ForwardTo
+						UserName	    = $_.UserPrincipalName
+						RuleName	    = $rule.name
+						RuleEnabled	    = $rule.Enabled
+						CopytoFolder    = $rule.CopyToFolder
+						MovetoFolder    = $rule.MoveToFolder
+						RedirectTo	    = $rule.RedirectTo
+						ForwardTo	    = $rule.ForwardTo
 						TextDescription = $rule.Description
-                     }
-
+					}
+					
 					$RuleList = $tempval
 					$amountofRules = $amountofRules + 1
 					$totalRules = $totalRules + 1
 					$RuleList | export-CSV $outputDirectory -Append -NoTypeInformation -Encoding UTF8
 				}
-
+				
 				write-LogFile -Message "[INFO] Found $amountofRules InboxRule(s) for: $($_.UserPrincipalName)..." -Color "Yellow"
 				write-LogFile -Message "[INFO] Collecting $amountofRules InboxRule(s) for: $($_.UserPrincipalName)..." -Color "Yellow"
 			}
-		} 	
+		}
 	}
 	
-	else {	
-		if ($UserIds -match ",") {
+	else
+	{
+		if ($UserIds -match ",")
+		{
 			$UserIds.Split(",") | ForEach-Object {
 				$User = $_
-	
+				
 				write-LogFile -Message ('[INFO] Checking {0}...' -f $User)
 				$inboxrule = get-inboxrule -Mailbox $User
-				if ($inboxrule) {
+				if ($inboxrule)
+				{
 					$amountofRules = 0
-					foreach ($rule in $inboxrule) {
+					foreach ($rule in $inboxrule)
+					{
 						$tempval = [pscustomobject]@{
-							UserName = $User
-							RuleName = $rule.name           
-							RuleEnabled = $rule.Enabled
-							CopytoFolder = $rule.CopyToFolder
-							MovetoFolder = $rule.MoveToFolder
-							RedirectTo = $rule.RedirectTo
-							ForwardTo = $rule.ForwardTo
+							UserName	    = $User
+							RuleName	    = $rule.name
+							RuleEnabled	    = $rule.Enabled
+							CopytoFolder    = $rule.CopyToFolder
+							MovetoFolder    = $rule.MoveToFolder
+							RedirectTo	    = $rule.RedirectTo
+							ForwardTo	    = $rule.ForwardTo
 							TextDescription = $rule.Description
 						}
-
+						
 						$RuleList = $tempval
 						$amountofRules = $amountofRules + 1
 						$totalRules = $totalRules + 1
@@ -296,40 +326,45 @@ function Get-MailboxRules
 				}
 			}
 		}
-
-		else {
+		
+		else
+		{
 			Write-Output ('[INFO] Checking {0}...' -f $UserIds)
-			$inboxrule = get-inboxrule -Mailbox $UserIds 
-			if ($inboxrule) {
+			$inboxrule = get-inboxrule -Mailbox $UserIds
+			if ($inboxrule)
+			{
 				write-LogFile -Message ('[INFO] Found InboxRule(s) for: {0}...' -f $UserIds) -ForegroundColor Yellow
-				foreach($rule in $inboxrule){
+				foreach ($rule in $inboxrule)
+				{
 					$amountofRules = $amountofRules + 1
 					$tempval = [pscustomobject]@{
-							UserName = $UserIds
-							RuleName = $rule.name           
-							RuleEnabled = $rule.Enabled
-							CopytoFolder = $rule.CopyToFolder
-							MovetoFolder = $rule.MoveToFolder
-							RedirectTo = $rule.RedirectTo
-							ForwardTo = $rule.ForwardTo
-							TextDescription = $rule.Description
-						}
-
-						$RuleList = $tempval
-						$totalRules = $totalRules + 1
-						$RuleList | export-CSV $outputDirectory -Append -NoTypeInformation -Encoding UTF8
+						UserName	    = $UserIds
+						RuleName	    = $rule.name
+						RuleEnabled	    = $rule.Enabled
+						CopytoFolder    = $rule.CopyToFolder
+						MovetoFolder    = $rule.MoveToFolder
+						RedirectTo	    = $rule.RedirectTo
+						ForwardTo	    = $rule.ForwardTo
+						TextDescription = $rule.Description
 					}
 					
-					write-LogFile -Message "[INFO] Collecting $amountofRules InboxRule(s) for: $UserIds..." -Color "Yellow"
+					$RuleList = $tempval
+					$totalRules = $totalRules + 1
+					$RuleList | export-CSV $outputDirectory -Append -NoTypeInformation -Encoding UTF8
+				}
+				
+				write-LogFile -Message "[INFO] Collecting $amountofRules InboxRule(s) for: $UserIds..." -Color "Yellow"
 			}
 		}
 	}
-
-	if ($RuleCount -gt 0) {
+	
+	if ($RuleCount -gt 0)
+	{
 		write-LogFile -Message "[INFO] A total of $RuleCount Inbox Rules found!" -Color "Green"
 		write-LogFile -Message "[INFO] Inbox rules are collected and written to: $outputDirectory" -Color "Green"
 	}
-	else {
+	else
+	{
 		write-LogFile -Message "[INFO] No Inbox Rules found!" -Color "Yellow"
 	}
 }
